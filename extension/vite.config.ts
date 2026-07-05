@@ -27,6 +27,7 @@ export default defineConfig({
         history: resolve(__dirname, "src/pages/history.html"),
         detail: resolve(__dirname, "src/pages/detail.html"),
         offscreen: resolve(__dirname, "src/offscreen/offscreen.html"),
+        liveAudioCaptureProcessor: resolve(__dirname, "src/offscreen/liveAudioCaptureProcessor.ts"),
         serviceWorker: resolve(__dirname, "src/background/serviceWorker.ts")
       },
       output: {

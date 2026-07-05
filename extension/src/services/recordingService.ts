@@ -12,9 +12,16 @@ export interface RecordingSnapshot {
   error?: string;
 }
 
+export interface MicActivityStats {
+  peakLevel: number;
+  activeDurationMs: number;
+  speechDetected: boolean;
+}
+
 export interface RecordedAudioPayload {
   tabAudioDataUrl?: string;
   micAudioDataUrl?: string;
+  micActivity?: MicActivityStats;
   startedAt: number;
   stoppedAt: number;
   durationSeconds: number;

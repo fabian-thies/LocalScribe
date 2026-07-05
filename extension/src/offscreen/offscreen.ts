@@ -18,7 +18,6 @@ import type { ExtensionSettings } from "../types/settings";
 import type { MeetingRecord, MeetingStatus, StructuredMeetingSummary } from "../types/meeting";
 import type { CombinedTranscript, LiveTranscriptUpdate, TranscriptSegment } from "../types/transcript";
 import { structuredSummaryToMarkdown } from "../utils/meetingSummary";
-import liveAudioCaptureProcessorUrl from "./liveAudioCaptureProcessor?url";
 
 type OffscreenRequest =
   | { type: "START"; streamId: string; includeMic: boolean; microphoneDeviceId?: string }
@@ -39,6 +38,7 @@ interface RecorderBundle {
 }
 
 interface LiveTranscriptionSource {
+  kind: "tab" | "mic";
   sourceLabel: string;
   stream: MediaStream;
   audioContext?: AudioContext;
@@ -68,6 +68,8 @@ let micAudioSource: MediaStreamAudioSourceNode | undefined;
 let micAnalyser: AnalyserNode | undefined;
 let micLevelTimer: number | undefined;
 let micLevel = 0;
+let micPeakLevelDuringRecording = 0;
+let micActiveDurationMsDuringRecording = 0;
 let lastError: string | undefined;
 let lastMicError: string | undefined;
 let micPreviewStream: MediaStream | undefined;
@@ -76,7 +78,7 @@ let liveSources: LiveTranscriptionSource[] = [];
 let liveTimer: ReturnType<typeof setInterval> | undefined;
 let activeLiveTranscription: Promise<void> | undefined;
 let liveTranscriptionFailures = 0;
-const liveAudioCaptureModuleUrl = new URL(liveAudioCaptureProcessorUrl, globalThis.location.href).href;
+const liveAudioCaptureModuleUrl = chrome.runtime.getURL("assets/liveAudioCaptureProcessor.js");
 
 chrome.runtime.onMessage.addListener((message: OffscreenRequest, _sender, sendResponse) => {
   if (!isOffscreenRequest(message)) {
@@ -151,6 +153,7 @@ async function start(streamId: string, shouldIncludeMic: boolean, microphoneDevi
   includeMic = shouldIncludeMic;
   startedAt = Date.now();
   status = "recording";
+  resetMicActivityTracking();
   lastError = undefined;
   lastMicError = undefined;
   const settings = await getSettings().catch(() => undefined);
@@ -170,7 +173,7 @@ async function start(streamId: string, shouldIncludeMic: boolean, microphoneDevi
 
     tabRecorder = createRecorder(tabStream);
     if (liveTranscriptionEnabled) {
-      createLiveSource(locale === "de" ? "Tab-Audio" : "Tab audio", tabStream);
+      createLiveSource("tab", locale === "de" ? "Tab-Audio" : "Tab audio", tabStream);
     }
     await playCapturedTabAudio(tabStream);
     tabRecorder.recorder.start(1000);
@@ -190,7 +193,7 @@ async function start(streamId: string, shouldIncludeMic: boolean, microphoneDevi
         }
         micRecorder = createRecorder(micStream);
         if (liveTranscriptionEnabled) {
-          createLiveSource(locale === "de" ? "Mikrofon" : "Microphone", micStream);
+          createLiveSource("mic", locale === "de" ? "Mikrofon" : "Microphone", micStream);
         }
         micRecorder.recorder.start(1000);
       } catch (error) {
@@ -222,6 +225,13 @@ async function stop(): Promise<RecordedAudioPayload> {
   const payload: RecordedAudioPayload = {
     tabAudioDataUrl: tabBlob ? await blobToDataUrl(tabBlob) : undefined,
     micAudioDataUrl: micBlob ? await blobToDataUrl(micBlob) : undefined,
+    micActivity: micBlob
+      ? {
+          peakLevel: micPeakLevelDuringRecording,
+          activeDurationMs: micActiveDurationMsDuringRecording,
+          speechDetected: micPeakLevelDuringRecording >= MIC_ACTIVITY_LEVEL_THRESHOLD && micActiveDurationMsDuringRecording >= MIC_ACTIVITY_MIN_ACTIVE_MS
+        }
+      : undefined,
     startedAt,
     stoppedAt,
     durationSeconds: Math.round((stoppedAt - startedAt) / 1000)
@@ -359,6 +369,13 @@ async function startMicLevelMeter(stream: MediaStream): Promise<void> {
     const rms = Math.sqrt(sumSquares / samples.length);
     const scaledLevel = Math.min(1, Math.max(0, (rms - 0.004) * 22));
     micLevel = micLevel * 0.55 + scaledLevel * 0.45;
+
+    if (status === "recording") {
+      micPeakLevelDuringRecording = Math.max(micPeakLevelDuringRecording, scaledLevel);
+      if (scaledLevel >= MIC_ACTIVITY_LEVEL_THRESHOLD) {
+        micActiveDurationMsDuringRecording += 100;
+      }
+    }
   };
 
   if (micAudioContext.state === "suspended") {
@@ -381,6 +398,11 @@ function stopMicLevelMeter(): void {
   micAnalyser = undefined;
   micLevelTimer = undefined;
   micLevel = 0;
+}
+
+function resetMicActivityTracking(): void {
+  micPeakLevelDuringRecording = 0;
+  micActiveDurationMsDuringRecording = 0;
 }
 
 async function playCapturedTabAudio(stream: MediaStream): Promise<void> {
@@ -416,6 +438,7 @@ async function reset(): Promise<void> {
   cleanup();
   status = "idle";
   includeMic = false;
+  resetMicActivityTracking();
   lastError = undefined;
   lastMicError = undefined;
   liveSources = [];
@@ -424,6 +447,12 @@ async function reset(): Promise<void> {
 const LIVE_INTERVAL_MS = 15000;
 const LIVE_STT_TIMEOUT_MS = 90000;
 const MAX_LIVE_TRANSCRIPTION_FAILURES = 3;
+const SILENCE_ANALYSIS_FRAME_SIZE = 2048;
+const SILENCE_ANALYSIS_RMS_THRESHOLD = 0.009;
+const SILENCE_ANALYSIS_PEAK_THRESHOLD = 0.05;
+const SILENCE_ANALYSIS_MIN_ACTIVE_MS = 250;
+const MIC_ACTIVITY_LEVEL_THRESHOLD = 0.12;
+const MIC_ACTIVITY_MIN_ACTIVE_MS = 300;
 
 function startLiveTranscription(): void {
   if (liveTimer) {
@@ -485,6 +514,10 @@ async function transcribeLiveBlobs(blobs: LiveAudioBlob[]): Promise<void> {
       try {
         console.log("[LiveTranscription] Sending " + source.sourceLabel + ": " + blob.size + " bytes to STT");
         const segment = await client.transcribeAudio(blob, source.sourceLabel, { timeoutMs: LIVE_STT_TIMEOUT_MS });
+        if (source.kind === "mic" && isLikelySilentTranscript(segment.text)) {
+          console.info("[LiveTranscription] Skipping suspicious microphone transcript for " + source.sourceLabel);
+          continue;
+        }
         source.segments.push(segment);
         successfulSegments += 1;
         console.log("[LiveTranscription] " + source.sourceLabel + " result: '" + segment.text.slice(0, 80) + "...'");
@@ -508,8 +541,9 @@ async function transcribeLiveBlobs(blobs: LiveAudioBlob[]): Promise<void> {
   }
 }
 
-function createLiveSource(sourceLabel: string, stream: MediaStream): LiveTranscriptionSource {
+function createLiveSource(kind: "tab" | "mic", sourceLabel: string, stream: MediaStream): LiveTranscriptionSource {
   const source: LiveTranscriptionSource = {
+    kind,
     sourceLabel,
     stream,
     samples: [],
@@ -586,6 +620,11 @@ function drainLiveAudioBlobs(): LiveAudioBlob[] {
     const samples = mergeFloatSamples(source.samples, source.sampleCount);
     source.samples = [];
     source.sampleCount = 0;
+
+    if (source.kind === "mic" && isLikelySilentAudioSamples(samples, source.sampleRate)) {
+      console.info("[LiveTranscription] Skipping silent microphone chunk.");
+      return [];
+    }
 
     return [{
       source,
@@ -754,7 +793,12 @@ async function runTranscription(): Promise<void> {
     const micSegment = await transcribeRecordingSource(
       client,
       recording.micAudioDataUrl,
-      settings.locale === "de" ? "Mikrofon" : "Microphone"
+      settings.locale === "de" ? "Mikrofon" : "Microphone",
+      {
+        skipIfLikelySilent: true,
+        knownSilent: recording.micActivity?.speechDetected === false,
+        discardSuspiciousTranscript: true
+      }
     );
     if (micSegment) {
       segments.push(micSegment);
@@ -792,10 +836,28 @@ async function runTranscription(): Promise<void> {
 async function transcribeRecordingSource(
   client: OpenWebuiClient,
   audioDataUrl: string,
-  sourceLabel: string
+  sourceLabel: string,
+  options: { skipIfLikelySilent?: boolean; knownSilent?: boolean; discardSuspiciousTranscript?: boolean } = {}
 ): Promise<TranscriptSegment | null> {
   try {
-    return await client.transcribeAudio(await dataUrlToBlob(audioDataUrl), sourceLabel);
+    if (options.knownSilent) {
+      console.info("[Transcription] Skipping microphone STT for " + sourceLabel + " because no speech activity was detected during recording.");
+      return null;
+    }
+
+    const blob = await dataUrlToBlob(audioDataUrl);
+    if (options.skipIfLikelySilent && await isLikelySilentAudioBlob(blob)) {
+      console.info("[Transcription] Skipping silent audio for " + sourceLabel);
+      return null;
+    }
+
+    const segment = await client.transcribeAudio(blob, sourceLabel);
+    if (options.discardSuspiciousTranscript && isLikelySilentTranscript(segment.text)) {
+      console.info("[Transcription] Discarding suspicious transcript for " + sourceLabel);
+      return null;
+    }
+
+    return segment;
   } catch (error) {
     if (error instanceof EmptyTranscriptError) {
       console.info("[Transcription] Skipping empty transcript for " + sourceLabel);
@@ -875,10 +937,103 @@ function isLikelySilentTranscript(text: string): boolean {
     return true;
   }
 
+  const words = normalized.split(" ");
+  if (words.length >= 6 && new Set(words).size <= 2) {
+    return true;
+  }
+
+  if (hasHighlyRepeatedPhrase(words)) {
+    return true;
+  }
+
   return new Set([
     "you",
     "you you"
   ]).has(normalized);
+}
+
+function hasHighlyRepeatedPhrase(words: string[]): boolean {
+  const maxPhraseLength = Math.min(8, Math.floor(words.length / 4));
+  for (let phraseLength = 1; phraseLength <= maxPhraseLength; phraseLength += 1) {
+    const phrase = words.slice(0, phraseLength);
+    let matchedWords = 0;
+    let repetitions = 0;
+
+    while (matchedWords + phraseLength <= words.length) {
+      const nextSlice = words.slice(matchedWords, matchedWords + phraseLength);
+      if (!arraysEqual(nextSlice, phrase)) {
+        break;
+      }
+      matchedWords += phraseLength;
+      repetitions += 1;
+    }
+
+    if (repetitions >= 4 && matchedWords / words.length >= 0.85) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function arraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function isLikelySilentAudioBlob(blob: Blob): Promise<boolean> {
+  try {
+    const buffer = await blob.arrayBuffer();
+    const audioContext = new AudioContext();
+    try {
+      const audioBuffer = await audioContext.decodeAudioData(buffer);
+      return isLikelySilentAudioSamples(audioBuffer.getChannelData(0), audioBuffer.sampleRate);
+    } finally {
+      void audioContext.close();
+    }
+  } catch (error) {
+    console.warn("[Transcription] Silent-audio detection failed:", error instanceof Error ? error.message : String(error));
+    return false;
+  }
+}
+
+function isLikelySilentAudioSamples(samples: Float32Array, sampleRate: number): boolean {
+  if (!samples.length || !sampleRate) {
+    return true;
+  }
+
+  let peak = 0;
+  let activeSamples = 0;
+
+  for (let offset = 0; offset < samples.length; offset += SILENCE_ANALYSIS_FRAME_SIZE) {
+    const end = Math.min(offset + SILENCE_ANALYSIS_FRAME_SIZE, samples.length);
+    let frameSumSquares = 0;
+    let framePeak = 0;
+
+    for (let index = offset; index < end; index += 1) {
+      const amplitude = Math.abs(samples[index] ?? 0);
+      frameSumSquares += amplitude * amplitude;
+      framePeak = Math.max(framePeak, amplitude);
+    }
+
+    peak = Math.max(peak, framePeak);
+    const frameRms = Math.sqrt(frameSumSquares / Math.max(1, end - offset));
+    if (frameRms >= SILENCE_ANALYSIS_RMS_THRESHOLD || framePeak >= SILENCE_ANALYSIS_PEAK_THRESHOLD) {
+      activeSamples += end - offset;
+    }
+  }
+
+  const activeDurationMs = activeSamples / sampleRate * 1000;
+  return peak < SILENCE_ANALYSIS_PEAK_THRESHOLD && activeDurationMs < SILENCE_ANALYSIS_MIN_ACTIVE_MS;
 }
 
 async function getProcessingLocale(): Promise<ExtensionSettings["locale"]> {

@@ -1,8 +1,8 @@
 {
-  "app.title": "Meeting Transcriber",
+  "app.title": "LocalScribe",
   "app.subtitle": "Private transcription with Open WebUI",
   "privacy.local.badge": "Local-first workspace",
-  "privacy.local.description": "Audio, drafts, transcripts, and notes stay in this Chrome profile unless your configured Open WebUI endpoint receives them.",
+  "privacy.local.description": "",
 
   "capture": "Recording",
   "capture.description": "Record the current tab. You can optionally capture your microphone as a separate source.",

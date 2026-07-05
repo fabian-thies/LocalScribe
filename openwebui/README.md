@@ -1,6 +1,6 @@
 # Open WebUI Local Backend
 
-This folder provides the default local backend stack for Local Meeting Transcriber. The extension itself talks to Open WebUI. The included Compose setup pairs Open WebUI with Ollama, but Open WebUI can also be configured to use other model providers or OpenAI-compatible APIs.
+This folder provides the default local backend stack for LocalScribe. The extension itself talks to Open WebUI. The included Compose setup pairs Open WebUI with Ollama, but Open WebUI can also be configured to use other model providers or OpenAI-compatible APIs.
 
 ## Services
 

@@ -297,7 +297,7 @@ export class OpenWebuiClient {
       headers: this.headers(true),
       body: JSON.stringify({
         name,
-        description: "Meeting transcripts and summaries synced from the Meeting Transcriber Chrome extension.",
+        description: "Meeting transcripts and summaries synced from the LocalScribe Chrome extension.",
         access_grants: []
       }),
       signal: AbortSignal.timeout(SHORT_REQUEST_TIMEOUT_MS)
@@ -331,7 +331,7 @@ export class OpenWebuiClient {
     formData.append("file", new Blob([content], { type: "text/markdown" }), fileName);
     formData.append("metadata", JSON.stringify({
       knowledge_id: knowledgeBaseId,
-      source: "meeting-transcriber",
+      source: "localscribe",
       file_hash: contentHash
     }));
 

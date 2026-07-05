@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   apiToken: "",
   model: "gemma4:latest",
   openWebuiKnowledgeSyncEnabled: false,
-  openWebuiKnowledgeBaseName: "Meeting Transcriber Meetings",
+  openWebuiKnowledgeBaseName: "LocalScribe Meetings",
   summaryPrompt: getDefaultSummaryPrompt(DEFAULT_LOCALE),
   summaryNoteType: "auto",
   summaryLength: "short",

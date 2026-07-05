@@ -1,7 +1,7 @@
 services:
   ollama:
     image: ollama/ollama:latest
-    container_name: meeting-transcriber-ollama
+    container_name: localscribe-ollama
     restart: unless-stopped
     ports:
       - "${OLLAMA_HOST_PORT:-11434}:11434"
@@ -10,7 +10,7 @@ services:
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: meeting-transcriber-open-webui
+    container_name: localscribe-open-webui
     restart: unless-stopped
     depends_on:
       - ollama

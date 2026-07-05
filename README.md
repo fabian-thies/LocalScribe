@@ -1,6 +1,6 @@
-# Local Meeting Transcriber
+# LocalScribe
 
-A local-first meeting transcription workflow with a Chrome extension, Open WebUI, optional Ollama-based local inference, and local Whisper/STT.
+LocalScribe is a local-first meeting transcription workflow with a Chrome extension, Open WebUI, optional Ollama-based local inference, and local Whisper/STT.
 
 The extension records audio from the active browser tab and can optionally record the microphone as a separate source. Audio is sent only to the Open WebUI server you configure. Open WebUI is the actual backend the extension talks to for speech-to-text and summarization. The included Docker setup uses Ollama as the default local model runtime, but Open WebUI can also be configured to use other model providers or OpenAI-compatible APIs. Meeting results are stored locally in Chrome extension storage.
 
@@ -49,8 +49,8 @@ npm --version
 ### 1. Clone the repository
 
 ```sh
-git clone <your-repository-url>
-cd meeting-transcriber
+git clone https://github.com/fabian-thies/LocalScribe.git
+cd LocalScribe
 ```
 
 ### 2. Configure the local backend
@@ -142,7 +142,7 @@ The unpacked extension is generated in `extension/dist`.
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Click `Load unpacked`.
-4. Select `meeting-transcriber/extension/dist`.
+4. Select `LocalScribe/extension/dist`.
 
 ### 9. Configure the extension
 

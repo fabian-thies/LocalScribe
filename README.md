@@ -4,6 +4,8 @@ A local-first meeting transcription workflow with a Chrome extension, Open WebUI
 
 The extension records audio from the active browser tab and can optionally record the microphone as a separate source. Audio is sent only to the Open WebUI server you configure. Open WebUI is the actual backend the extension talks to for speech-to-text and summarization. The included Docker setup uses Ollama as the default local model runtime, but Open WebUI can also be configured to use other model providers or OpenAI-compatible APIs. Meeting results are stored locally in Chrome extension storage.
 
+![Extension popup screenshot](docs/screenshots/extension-popup.png)
+
 ## Architecture
 
 ```text

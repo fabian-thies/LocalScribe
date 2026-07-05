@@ -1,6 +1,6 @@
 import type { RecordingSnapshot, RecordedAudioPayload, RecordingStatus } from "../services/recordingService";
 import { getSettings } from "../services/settingsStorage";
-import { OpenWebuiClient } from "../services/openWebuiClient";
+import { EmptyTranscriptError, OpenWebuiClient } from "../services/openWebuiClient";
 import {
   clearRecordingDraft,
   getCurrentMeetingId,
@@ -739,12 +739,26 @@ async function runTranscription(): Promise<void> {
 
   if (recording.tabAudioDataUrl) {
     await setProcessingState(processingState("transcribing", processingMessage(settings.locale, "transcribingTab"), previous?.id));
-    segments.push(await client.transcribeAudio(await dataUrlToBlob(recording.tabAudioDataUrl), settings.locale === "de" ? "Tab-Audio" : "Tab audio"));
+    const tabSegment = await transcribeRecordingSource(
+      client,
+      recording.tabAudioDataUrl,
+      settings.locale === "de" ? "Tab-Audio" : "Tab audio"
+    );
+    if (tabSegment) {
+      segments.push(tabSegment);
+    }
   }
 
   if (recording.micAudioDataUrl) {
     await setProcessingState(processingState("transcribing", processingMessage(settings.locale, "transcribingMicrophone"), previous?.id));
-    segments.push(await client.transcribeAudio(await dataUrlToBlob(recording.micAudioDataUrl), settings.locale === "de" ? "Mikrofon" : "Microphone"));
+    const micSegment = await transcribeRecordingSource(
+      client,
+      recording.micAudioDataUrl,
+      settings.locale === "de" ? "Mikrofon" : "Microphone"
+    );
+    if (micSegment) {
+      segments.push(micSegment);
+    }
   }
 
   const transcript = combineSegments(segments);
@@ -773,6 +787,23 @@ async function runTranscription(): Promise<void> {
       ? processingMessage(settings.locale, "transcriptionCompleteSynced")
       : processingMessage(settings.locale, "transcriptionComplete");
   await setProcessingState(processingState("complete", completeMessage, syncResult.meeting.id));
+}
+
+async function transcribeRecordingSource(
+  client: OpenWebuiClient,
+  audioDataUrl: string,
+  sourceLabel: string
+): Promise<TranscriptSegment | null> {
+  try {
+    return await client.transcribeAudio(await dataUrlToBlob(audioDataUrl), sourceLabel);
+  } catch (error) {
+    if (error instanceof EmptyTranscriptError) {
+      console.info("[Transcription] Skipping empty transcript for " + sourceLabel);
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 async function runSummary(meetingId?: string): Promise<void> {

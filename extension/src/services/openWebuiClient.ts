@@ -8,6 +8,16 @@ export interface ConnectionResult {
   message: string;
 }
 
+export class EmptyTranscriptError extends Error {
+  readonly sourceLabel: string;
+
+  constructor(sourceLabel: string) {
+    super(`Open WebUI did not return transcript text for ${sourceLabel}.`);
+    this.name = "EmptyTranscriptError";
+    this.sourceLabel = sourceLabel;
+  }
+}
+
 interface OpenWebuiErrorPayload {
   detail?: string;
   message?: string;
@@ -105,7 +115,7 @@ export class OpenWebuiClient {
       "";
 
     if (!text.trim()) {
-      throw new Error(`Open WebUI did not return transcript text for ${sourceLabel}.`);
+      throw new EmptyTranscriptError(sourceLabel);
     }
 
     return {

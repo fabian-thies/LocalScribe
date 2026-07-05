@@ -6,24 +6,22 @@ The extension records audio from the active browser tab and can optionally recor
 
 ![Extension popup screenshot](docs/screenshots/extension-popup.png)
 
-## Architecture
+## Features
 
 ```text
-Chrome Extension
-  - captures tab audio with chrome.tabCapture
-  - optionally captures microphone audio with getUserMedia
-  - keeps the sources as separate WebM recordings
-  - sends audio to configured Open WebUI STT endpoint
-  - combines transcripts with source labels
-  - sends transcript to Open WebUI chat completions
-  - stores meeting history in chrome.storage.local
-
-Open WebUI
-  - externally managed local/self-hosted backend
-  - provides STT/Whisper and chat-compatible API access
-
-Ollama
-  - optional default local LLM runtime in the included Docker setup
+- Records audio from the active Chrome tab
+- Optionally records microphone audio as a separate source
+- Supports live transcription during recording
+- Transcribes recorded audio through a configurable Open WebUI STT endpoint
+- Combines tab and microphone transcripts with source labels when both sources are used
+- Generates structured meeting summaries through a configurable Open WebUI chat-completions endpoint
+- Lets you tune summary behavior with configurable prompt, length, language, and strictness settings
+- Stores meeting history locally in chrome.storage.local
+- Lets you review past transcripts and summaries in the built-in history and detail views
+- Exports saved meetings as Markdown
+- Syncs transcripts and summaries to an Open WebUI Knowledge Base for later retrieval
+- Works with a local or self-hosted Open WebUI backend
+- Includes an optional Ollama-based Docker setup as the default local model runtime
 ```
 
 No Open WebUI fork is used. No Open WebUI source code is modified.

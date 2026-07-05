@@ -1,0 +1,32 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: meeting-transcriber-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: meeting-transcriber-open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - "${OPEN_WEBUI_PORT:-3000}:8080"
+    environment:
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://ollama:11434}"
+      WEBUI_AUTH: "${WEBUI_AUTH:-true}"
+      ENABLE_AUDIO_STT: "${ENABLE_AUDIO_STT:-true}"
+      WHISPER_MODEL: "${WHISPER_MODEL:-small}"
+      WHISPER_LANGUAGE: "${WHISPER_LANGUAGE:-}"
+      WHISPER_MULTILINGUAL: "${WHISPER_MULTILINGUAL:-true}"
+      WHISPER_COMPUTE_TYPE: "${WHISPER_COMPUTE_TYPE:-int8}"
+    volumes:
+      - open-webui-data:/app/backend/data
+
+volumes:
+  open-webui-data:
+  ollama-models:

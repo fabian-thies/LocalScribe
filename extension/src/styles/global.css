@@ -1,0 +1,255 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #eef4f3;
+  --color-bg-warm: #f7faf9;
+  --color-surface: #fbfdfc;
+  --color-surface-soft: #eef5f3;
+  --color-surface-raised: #ffffff;
+  --color-border: #cfdbd8;
+  --color-border-strong: #aabbb6;
+  --color-text: #14211f;
+  --color-muted: #65736f;
+  --color-muted-strong: #43524f;
+  --color-accent: #0b6b5f;
+  --color-accent-strong: #064d45;
+  --color-accent-soft: #dff0ed;
+  --color-brand: #16302d;
+  --color-danger: #a93329;
+  --color-danger-soft: #fff0ee;
+  --color-warning: #865800;
+  --color-warning-soft: #fff5dc;
+  --color-success: #106b46;
+  --color-success-soft: #e6f6ee;
+  --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Aptos, sans-serif;
+  --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+  }
+
+  body {
+    margin: 0;
+    min-width: 360px;
+    background:
+      linear-gradient(135deg, rgba(11, 107, 95, 0.08), transparent 28rem),
+      linear-gradient(180deg, var(--color-bg-warm), var(--color-bg) 42%);
+    color: var(--color-text);
+    font-family: var(--font-family-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  a {
+    color: var(--color-accent-strong);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin-top: 0;
+  }
+
+  h1 {
+    color: var(--color-text);
+    font-size: 23px;
+    font-weight: 760;
+    line-height: 1.15;
+    margin-bottom: 3px;
+    letter-spacing: 0;
+  }
+
+  h2 {
+    color: var(--color-text);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+
+  h3 {
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 7px;
+  }
+
+  p {
+    margin-bottom: 0;
+  }
+
+  ::selection {
+    background: rgba(11, 107, 95, 0.18);
+  }
+
+  :focus-visible {
+    outline: none;
+  }
+}
+
+@layer components {
+  .app-page {
+    min-height: 100dvh;
+    padding: 32px;
+  }
+
+  .app-container {
+    width: min(1120px, 100%);
+    margin-inline: auto;
+    display: grid;
+    gap: 18px;
+  }
+
+  .popup-shell {
+    width: 430px;
+    min-height: 580px;
+    overflow: visible;
+    padding: 16px;
+  }
+
+  .app-card {
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--color-surface-raised) 96%, transparent);
+    box-shadow:
+      0 1px 2px rgba(20, 33, 31, 0.06),
+      0 12px 28px rgba(20, 33, 31, 0.05);
+  }
+
+  .app-card-quiet {
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  }
+
+  .field-control {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font-size: 14px;
+    padding: 9px 12px;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      background 150ms ease;
+  }
+
+  .field-control:hover {
+    border-color: var(--color-border-strong);
+  }
+
+  .field-control:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(11, 107, 95, 0.2);
+  }
+
+  .field-control::placeholder {
+    color: #778580;
+  }
+
+  .scroll-panel {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface-soft);
+    padding: 13px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .skeleton-line {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #dfe9e6, #f4f8f7, #dfe9e6);
+    background-size: 200% 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-line {
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 720px) {
+  .app-page {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 440px) {
+  .popup-shell {
+    width: 100vw;
+    padding: 12px;
+  }
+}
+
+
+/* ── Mic meter bars ── */
+/* :nth-child heights cannot be expressed with Tailwind utilities */
+
+.mic-meter-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+  height: 34px;
+}
+
+.mic-meter-bars span {
+  min-width: 0;
+  border-radius: 3px;
+  background: #d8e2eb;
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.mic-meter-bars span:nth-child(1)  { height: 10px; }
+.mic-meter-bars span:nth-child(2)  { height: 12px; }
+.mic-meter-bars span:nth-child(3)  { height: 14px; }
+.mic-meter-bars span:nth-child(4)  { height: 16px; }
+.mic-meter-bars span:nth-child(5)  { height: 18px; }
+.mic-meter-bars span:nth-child(6)  { height: 20px; }
+.mic-meter-bars span:nth-child(7)  { height: 22px; }
+.mic-meter-bars span:nth-child(8)  { height: 24px; }
+.mic-meter-bars span:nth-child(9)  { height: 26px; }
+.mic-meter-bars span:nth-child(10) { height: 28px; }
+.mic-meter-bars span:nth-child(11) { height: 30px; }
+.mic-meter-bars span:nth-child(12) { height: 32px; }
+
+.mic-meter-bars span.filled {
+  background: var(--color-accent);
+  transform: scaleY(1.08);
+}
+
+.mic-meter.active .mic-meter-bars span.filled:nth-last-child(-n + 3) {
+  background: var(--color-success);
+}

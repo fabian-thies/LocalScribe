@@ -32,7 +32,7 @@ export async function startRecording(includeMic: boolean, microphoneDeviceId?: s
 }
 
 export async function stopRecording(): Promise<RecordedAudioPayload> {
-  return sendMessage<RecordedAudioPayload>({ type: "STOP" });
+  return sendMessage<RecordedAudioPayload>({ type: "STOP_RECORDING" });
 }
 
 export async function resetRecording(): Promise<RecordingSnapshot> {

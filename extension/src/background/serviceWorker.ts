@@ -168,11 +168,11 @@ async function handleMessage(message: BackgroundRequest): Promise<unknown> {
   throw new Error("The recording action is not supported.");
 }
 
-let creatingOffscreenDocument = false;
+let creatingOffscreenDocument: Promise<void> | null = null;
 
 async function ensureOffscreenDocument(): Promise<void> {
   if (creatingOffscreenDocument) {
-    return;
+    return creatingOffscreenDocument;
   }
 
   const offscreenUrl = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
@@ -185,16 +185,16 @@ async function ensureOffscreenDocument(): Promise<void> {
     return;
   }
 
-  creatingOffscreenDocument = true;
-  try {
-    await chrome.offscreen.createDocument({
-      url: OFFSCREEN_DOCUMENT_PATH,
-      reasons: [chrome.offscreen.Reason.USER_MEDIA],
-      justification: "Record the active browser tab and optional microphone for local meeting transcription."
-    });
-  } finally {
-    creatingOffscreenDocument = false;
-  }
+  const promise = chrome.offscreen.createDocument({
+    url: OFFSCREEN_DOCUMENT_PATH,
+    reasons: [chrome.offscreen.Reason.USER_MEDIA],
+    justification: "Record the active browser tab and optional microphone for local meeting transcription."
+  }).finally(() => {
+    creatingOffscreenDocument = null;
+  });
+
+  creatingOffscreenDocument = promise;
+  return promise;
 }
 
 function getTabMediaStreamId(targetTabId: number): Promise<string> {

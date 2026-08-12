@@ -102,8 +102,6 @@ The extension uses React, TypeScript, Vite, and Manifest V3. Always rebuild `ext
 
 No Open WebUI fork is used and no Open WebUI source code is modified.
 
-Maintainers preparing a Store release can use the [Chrome Web Store submission guide](docs/chrome-web-store-submission.md).
-
 ## Contributing
 
 Bug reports and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change. Please do not attach real recordings, transcripts, API keys, or private Open WebUI URLs to public issues.

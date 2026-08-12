@@ -11,16 +11,100 @@
         overflow: hidden;
       }
 
+      .store-frame {
+        box-sizing: border-box;
+        width: 100vw;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: minmax(0, 560px) 352px;
+        align-items: center;
+        justify-content: center;
+        gap: 92px;
+        padding: 0 72px;
+      }
+
+      .store-copy {
+        align-self: center;
+      }
+
+      .store-eyebrow {
+        margin: 0 0 18px;
+        color: #0b6b5f;
+        font-size: 13px;
+        font-weight: 750;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .store-title {
+        max-width: 520px;
+        margin: 0;
+        color: #16302d;
+        font-size: 62px;
+        font-weight: 760;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      .store-description {
+        max-width: 500px;
+        margin: 26px 0 0;
+        color: #43524f;
+        font-size: 19px;
+        line-height: 1.55;
+      }
+
+      .store-features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 30px;
+      }
+
+      .store-feature {
+        border: 1px solid #bfd0cc;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #29433f;
+        font-size: 13px;
+        font-weight: 650;
+        padding: 8px 13px;
+      }
+
+      .preview-stage {
+        position: relative;
+        width: 352px;
+        height: 760px;
+      }
+
       #root {
+        position: absolute;
+        top: 14px;
+        left: 50%;
         width: 440px;
-        margin: 24px auto 0;
-        transform: scale(0.76);
+        transform: translateX(-50%) scale(0.76);
         transform-origin: top center;
       }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main class="store-frame">
+      <section class="store-copy" aria-label="Voxbound overview">
+        <p class="store-eyebrow">Meeting notes with Open WebUI</p>
+        <h1 class="store-title">Record. Transcribe. Keep the context.</h1>
+        <p class="store-description">
+          Capture tab audio, create structured notes through your Open WebUI setup, and keep meeting history in Chrome.
+        </p>
+        <div class="store-features" aria-label="Key features">
+          <span class="store-feature">Tab + microphone audio</span>
+          <span class="store-feature">Structured notes</span>
+          <span class="store-feature">Markdown export</span>
+        </div>
+      </section>
+      <section class="preview-stage" aria-label="Voxbound extension preview">
+        <div id="root"></div>
+      </section>
+    </main>
     <script>
       (() => {
         const settings = {

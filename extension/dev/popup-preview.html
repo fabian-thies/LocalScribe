@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voxbound popup preview</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      #root {
+        width: 440px;
+        margin: 24px auto 0;
+        transform: scale(0.76);
+        transform-origin: top center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      (() => {
+        const settings = {
+          openWebuiBaseUrl: "http://localhost:3000",
+          apiToken: "",
+          model: "qwen2.5:7b-instruct",
+          openWebuiKnowledgeSyncEnabled: false,
+          openWebuiKnowledgeBaseName: "Voxbound Meetings",
+          summaryPrompt: "Use only information from the transcript.",
+          summaryNoteType: "auto",
+          summaryLength: "short",
+          summaryLanguage: "auto",
+          summaryStrictness: "strict",
+          sttEndpointPath: "/api/v1/audio/transcriptions",
+          chatEndpointPath: "/api/chat/completions",
+          locale: "en",
+          liveTranscriptionEnabled: false
+        };
+        const store = {
+          "meetingTranscriber.settings": settings,
+          includeMic: false
+        };
+        const recordingSnapshot = {
+          status: "idle",
+          includeMic: false,
+          micLevel: 0,
+          micTrackActive: false
+        };
+        const processingState = {
+          status: "idle",
+          message: "",
+          updatedAt: new Date().toISOString()
+        };
+
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const url = new URL(typeof input === "string" ? input : input.url, window.location.href);
+          if (url.origin === "http://localhost:3000") {
+            if (url.pathname === "/api/models") {
+              return new Response(JSON.stringify({ data: [{ id: settings.model, name: settings.model }] }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" }
+              });
+            }
+            return new Response("OK", { status: 200 });
+          }
+          return originalFetch(input, init);
+        };
+
+        window.chrome = {
+          runtime: {
+            getURL: (path) => new URL(`/${path}`, window.location.origin).href,
+            openOptionsPage: async () => undefined,
+            sendMessage: async (message) => {
+              if (message?.type === "GET_PROCESSING_STATUS") {
+                return { ok: true, data: processingState };
+              }
+              if (message?.type === "GET_LIVE_TRANSCRIPT") {
+                return { ok: true, data: { segments: [], text: "" } };
+              }
+              return { ok: true, data: recordingSnapshot };
+            }
+          },
+          storage: {
+            local: {
+              get: async (keys) => {
+                if (typeof keys === "string") {
+                  return { [keys]: store[keys] };
+                }
+                if (Array.isArray(keys)) {
+                  return Object.fromEntries(keys.map((key) => [key, store[key]]));
+                }
+                if (keys && typeof keys === "object") {
+                  return Object.fromEntries(Object.entries(keys).map(([key, fallback]) => [key, store[key] ?? fallback]));
+                }
+                return { ...store };
+              },
+              set: async (values) => Object.assign(store, values),
+              remove: async (keys) => {
+                for (const key of Array.isArray(keys) ? keys : [keys]) {
+                  delete store[key];
+                }
+              }
+            },
+            onChanged: {
+              addListener: () => undefined,
+              removeListener: () => undefined
+            }
+          },
+          tabs: {
+            create: async () => undefined,
+            update: async () => undefined
+          },
+          permissions: {
+            request: async () => true
+          }
+        };
+      })();
+    </script>
+    <script type="module" src="/src/popup/Popup.tsx"></script>
+  </body>
+</html>

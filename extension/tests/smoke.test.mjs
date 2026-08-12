@@ -16,6 +16,15 @@ test("manifest keeps required MV3 extension basics", async () => {
   for (const permission of ["activeTab", "offscreen", "storage", "tabCapture", "unlimitedStorage"]) {
     assert.ok(manifest.permissions.includes(permission), `missing permission: ${permission}`);
   }
+
+  for (const origin of ["https://*/*"]) {
+    assert.ok(manifest.optional_host_permissions.includes(origin), `missing optional host permission: ${origin}`);
+  }
+
+  assert.ok(!manifest.optional_host_permissions.includes("http://*/*"), "remote HTTP access must not be optional");
+  assert.equal(manifest.minimum_chrome_version, "116");
+  assert.equal(manifest.web_accessible_resources, undefined, "internal extension resources must not be exposed to websites");
+  assert.equal(manifest.homepage_url, "https://github.com/fabian-thies/meeting-transcoder");
 });
 
 test("English and German locale files expose the same non-empty keys", async () => {
@@ -50,4 +59,12 @@ test("service worker exposes a visible recording badge", async () => {
   assert.match(serviceWorkerSource, /RECORDING_BADGE_TEXT\s*=\s*"REC"/);
   assert.match(serviceWorkerSource, /setBadgeBackgroundColor/);
   assert.match(serviceWorkerSource, /setBadgeText\(\{\s*text:\s*badgeText\s*\}\)/);
+});
+
+test("first install opens setup without reopening it on updates", async () => {
+  const serviceWorkerSource = await readText("../src/background/serviceWorker.ts");
+
+  assert.match(serviceWorkerSource, /onInstalled\.addListener/);
+  assert.match(serviceWorkerSource, /details\.reason\s*===\s*"install"/);
+  assert.match(serviceWorkerSource, /openOptionsPage/);
 });

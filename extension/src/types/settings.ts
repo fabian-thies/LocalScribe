@@ -76,9 +76,9 @@ const DEFAULT_LOCALE = detectDefaultLocale();
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   openWebuiBaseUrl: "http://localhost:3000",
   apiToken: "",
-  model: "gemma4:latest",
+  model: "",
   openWebuiKnowledgeSyncEnabled: false,
-  openWebuiKnowledgeBaseName: "LocalScribe Meetings",
+  openWebuiKnowledgeBaseName: "Voxbound Meetings",
   summaryPrompt: getDefaultSummaryPrompt(DEFAULT_LOCALE),
   summaryNoteType: "auto",
   summaryLength: "short",

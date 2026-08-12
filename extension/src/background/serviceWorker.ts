@@ -27,6 +27,12 @@ const ICON_RECORDING = { "16": "icons/recording-icon16.png", "48": "icons/record
 const RECORDING_BADGE_TEXT = "REC";
 const RECORDING_BADGE_COLOR = "#d93025";
 
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    void chrome.runtime.openOptionsPage();
+  }
+});
+
 async function setActionIcon(paths: Record<string, string>): Promise<void> {
   const imageData: Record<string, ImageData> = {};
   for (const [size, relativePath] of Object.entries(paths)) {

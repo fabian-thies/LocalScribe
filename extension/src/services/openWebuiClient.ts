@@ -6,6 +6,7 @@ import { buildMeetingKnowledgeFileName, buildMeetingKnowledgeMarkdown, sha256Hex
 export interface ConnectionResult {
   ok: boolean;
   message: string;
+  warning?: boolean;
 }
 
 export class EmptyTranscriptError extends Error {
@@ -42,6 +43,16 @@ interface FileResponse {
   filename?: string;
 }
 
+interface ModelListItem {
+  id?: string;
+  name?: string;
+}
+
+interface ModelListResponse {
+  data?: ModelListItem[];
+  models?: ModelListItem[];
+}
+
 interface TranscriptionOptions {
   timeoutMs?: number;
 }
@@ -60,21 +71,60 @@ export class OpenWebuiClient {
 
   constructor(settings: ExtensionSettings) {
     this.settings = settings;
-    this.baseUrl = settings.openWebuiBaseUrl.replace(/\/+$/, "");
+    this.baseUrl = settings.openWebuiBaseUrl.trim().replace(/\/+$/, "");
     this.token = settings.apiToken.trim();
     this.sttEndpointPath = normalizePath(settings.sttEndpointPath);
     this.chatEndpointPath = normalizePath(settings.chatEndpointPath);
   }
 
   async testConnection(): Promise<ConnectionResult> {
-    const candidates = ["/health", "/api/config", "/"];
+    const modelEndpoint = "/api/models";
     const errors: string[] = [];
+
+    try {
+      const response = await fetch(this.url(modelEndpoint), { headers: this.headers(false), signal: AbortSignal.timeout(SHORT_REQUEST_TIMEOUT_MS) });
+      if (response.ok) {
+        const modelIds = await readModelIds(response);
+        const configuredModel = this.settings.model.trim();
+        if (!configuredModel) {
+          return {
+            ok: true,
+            warning: true,
+            message: `Open WebUI is reachable at ${this.baseUrl}, but no summary model is configured yet.`
+          };
+        }
+        if (modelIds.length > 0 && !modelIds.includes(configuredModel)) {
+          return {
+            ok: true,
+            warning: true,
+            message: `Open WebUI is reachable, but the summary model "${configuredModel}" was not returned by ${modelEndpoint}. Check the exact model ID and account access.`
+          };
+        }
+        return { ok: true, message: `Open WebUI and the configured summary model are reachable at ${this.baseUrl}.` };
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return {
+          ok: false,
+          message: `Open WebUI rejected the connection at ${modelEndpoint} (HTTP ${response.status}). Check the API key or Bearer token and account permissions.`
+        };
+      }
+      errors.push(`${modelEndpoint}: HTTP ${response.status}`);
+    } catch (error) {
+      errors.push(`${modelEndpoint}: ${error instanceof Error ? error.message : "request could not be completed"}`);
+    }
+
+    const candidates = ["/health", "/api/config", "/"];
 
     for (const path of candidates) {
       try {
         const response = await fetch(this.url(path), { headers: this.headers(), signal: AbortSignal.timeout(SHORT_REQUEST_TIMEOUT_MS) });
         if (response.ok) {
-          return { ok: true, message: `Open WebUI is reachable at ${this.baseUrl}.` };
+          return {
+            ok: true,
+            warning: true,
+            message: `Open WebUI is reachable at ${this.baseUrl}, but model access could not be verified. Check the API token and summary model before recording.`
+          };
         }
         errors.push(`${path}: HTTP ${response.status}`);
       } catch (error) {
@@ -240,11 +290,16 @@ export class OpenWebuiClient {
   }
 
   private async chatCompletion(messages: Array<{ role: "system" | "user"; content: string }>): Promise<string> {
+    const model = this.settings.model.trim();
+    if (!model) {
+      throw new Error("No summary model is configured. Enter an exact model ID exposed by Open WebUI in the extension Settings.");
+    }
+
     const response = await fetch(this.url(this.chatEndpointPath), {
       method: "POST",
       headers: this.headers(true),
       body: JSON.stringify({
-        model: this.settings.model,
+        model,
         stream: false,
         messages
       })
@@ -297,7 +352,7 @@ export class OpenWebuiClient {
       headers: this.headers(true),
       body: JSON.stringify({
         name,
-        description: "Meeting transcripts and summaries synced from the LocalScribe Chrome extension.",
+        description: "Meeting transcripts and summaries synced from the Voxbound Chrome extension.",
         access_grants: []
       }),
       signal: AbortSignal.timeout(SHORT_REQUEST_TIMEOUT_MS)
@@ -331,7 +386,7 @@ export class OpenWebuiClient {
     formData.append("file", new Blob([content], { type: "text/markdown" }), fileName);
     formData.append("metadata", JSON.stringify({
       knowledge_id: knowledgeBaseId,
-      source: "localscribe",
+      source: "voxbound",
       file_hash: contentHash
     }));
 
@@ -419,6 +474,16 @@ export class OpenWebuiClient {
     }
 
     return fileId;
+  }
+}
+
+async function readModelIds(response: Response): Promise<string[]> {
+  try {
+    const payload = (await response.json()) as ModelListResponse | ModelListItem[];
+    const models = Array.isArray(payload) ? payload : payload.data ?? payload.models ?? [];
+    return models.flatMap((model) => [model.id, model.name]).filter((value): value is string => Boolean(value));
+  } catch {
+    return [];
   }
 }
 

@@ -5,12 +5,14 @@ node_modules/
 dist/
 build/
 coverage/
+release/
 
 # Environment and local secrets
 .env
 .env.*
 !.env.example
 openwebui/docker-compose.override.yml
+openwebui/docker-compose.ollama.local.yml
 
 # Logs
 *.log

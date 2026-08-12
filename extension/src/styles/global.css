@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source not "../../dev";
 
 @theme {
   --color-bg: #eef4f3;

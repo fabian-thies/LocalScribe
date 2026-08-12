@@ -31,6 +31,7 @@ const selectClass = `${inputClass} cursor-pointer appearance-none bg-[url("data:
 function OptionsPage() {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "warning">("success");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -57,10 +58,14 @@ function OptionsPage() {
 
   async function handleSave() {
     setBusy(true);
+    setMessage("");
     setError("");
     try {
-      await saveSettings(settings);
-      setLocale(settings.locale);
+      const normalizedSettings = await prepareSettings(settings);
+      await saveSettings(normalizedSettings);
+      setSettings(normalizedSettings);
+      setLocale(normalizedSettings.locale);
+      setMessageTone("success");
       setMessage(t("settings.saved"));
     } catch (saveError) {
       setError(getErrorMessage(saveError));
@@ -71,13 +76,16 @@ function OptionsPage() {
 
   async function handleTest() {
     setBusy(true);
+    setMessage("");
     setError("");
     try {
-      const result = await new OpenWebuiClient(settings).testConnection();
+      const normalizedSettings = await prepareSettings(settings);
+      setSettings(normalizedSettings);
+      const result = await new OpenWebuiClient(normalizedSettings).testConnection();
       if (!result.ok) {
-        setMessage("");
         setError(result.message);
       } else {
+        setMessageTone(result.warning ? "warning" : "success");
         setMessage(result.message);
       }
     } catch (testError) {
@@ -101,6 +109,8 @@ function OptionsPage() {
           }
         />
 
+        {!settings.model.trim() ? <Notice tone="info">{t("settings.setup.incomplete")}</Notice> : null}
+
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)] items-start gap-[18px] max-[860px]:grid-cols-1">
           <Card raised className="grid gap-4">
             <SectionHeader icon={<Server size={18} />} title={t("backend")} description={t("backend.description")} />
@@ -117,8 +127,14 @@ function OptionsPage() {
                 onChange={(event) => update("apiToken", event.target.value)}
               />
             </Field>
-            <Field label={t("summarization.model")} id="summary-model">
-              <input id="summary-model" className={inputClass} value={settings.model} onChange={(event) => update("model", event.target.value)} />
+            <Field label={t("summarization.model")} id="summary-model" help={t("summarization.model.help")}>
+              <input
+                id="summary-model"
+                className={inputClass}
+                value={settings.model}
+                placeholder={t("summarization.model.placeholder")}
+                onChange={(event) => update("model", event.target.value)}
+              />
             </Field>
           </Card>
 
@@ -224,7 +240,7 @@ function OptionsPage() {
           </div>
           {message || error ? (
             <div className="grid gap-2" aria-live="polite">
-              {message ? <Notice tone="success">{message}</Notice> : null}
+              {message ? <Notice tone={messageTone}>{message}</Notice> : null}
               {error ? <Notice tone="danger">{error}</Notice> : null}
             </div>
           ) : null}
@@ -232,6 +248,58 @@ function OptionsPage() {
       </div>
     </main>
   );
+}
+
+async function prepareSettings(settings: ExtensionSettings): Promise<ExtensionSettings> {
+  const openWebuiBaseUrl = await ensureOpenWebuiHostPermission(settings.openWebuiBaseUrl);
+  return {
+    ...settings,
+    openWebuiBaseUrl,
+    apiToken: settings.apiToken.trim(),
+    model: settings.model.trim(),
+    openWebuiKnowledgeBaseName: settings.openWebuiKnowledgeBaseName.trim() || DEFAULT_SETTINGS.openWebuiKnowledgeBaseName,
+    sttEndpointPath: settings.sttEndpointPath.trim() || DEFAULT_SETTINGS.sttEndpointPath,
+    chatEndpointPath: settings.chatEndpointPath.trim() || DEFAULT_SETTINGS.chatEndpointPath
+  };
+}
+
+async function ensureOpenWebuiHostPermission(baseUrl: string): Promise<string> {
+  let url: URL;
+  try {
+    url = new URL(baseUrl.trim());
+  } catch {
+    throw new Error(t("openwebui.base.url.invalid"));
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(t("openwebui.base.url.invalid"));
+  }
+
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(t("openwebui.base.url.invalid"));
+  }
+
+  const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  if (url.protocol === "http:" && !loopbackHosts.has(url.hostname)) {
+    throw new Error(t("openwebui.base.url.https.required"));
+  }
+
+  if (url.protocol === "http:") {
+    return normalizeOpenWebuiBaseUrl(url);
+  }
+
+  const originPattern = `${url.protocol}//${url.hostname}/*`;
+  const granted = await chrome.permissions.request({ origins: [originPattern] });
+  if (!granted) {
+    throw new Error(t("openwebui.host.permission.denied", { origin: url.origin }));
+  }
+
+  return normalizeOpenWebuiBaseUrl(url);
+}
+
+function normalizeOpenWebuiBaseUrl(url: URL): string {
+  const path = url.pathname.replace(/\/+$/, "");
+  return `${url.origin}${path === "/" ? "" : path}`;
 }
 
 function SectionHeader({ title, description, icon }: { title: string; description?: string; icon?: ReactNode }) {

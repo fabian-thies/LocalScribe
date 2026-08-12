@@ -11,9 +11,9 @@ export default defineConfig({
     {
       name: "copy-extension-manifest",
       closeBundle() {
-        mkdirSync(resolve(__dirname, "dist"), { recursive: true });
-        copyFileSync(resolve(__dirname, "manifest.json"), resolve(__dirname, "dist/manifest.json"));
-        cpSync(resolve(__dirname, "icons"), resolve(__dirname, "dist/icons"), { recursive: true });
+        mkdirSync(resolve(import.meta.dirname, "dist"), { recursive: true });
+        copyFileSync(resolve(import.meta.dirname, "manifest.json"), resolve(import.meta.dirname, "dist/manifest.json"));
+        cpSync(resolve(import.meta.dirname, "icons"), resolve(import.meta.dirname, "dist/icons"), { recursive: true });
       }
     }
   ],
@@ -22,13 +22,13 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, "src/popup/popup.html"),
-        options: resolve(__dirname, "src/options/options.html"),
-        history: resolve(__dirname, "src/pages/history.html"),
-        detail: resolve(__dirname, "src/pages/detail.html"),
-        offscreen: resolve(__dirname, "src/offscreen/offscreen.html"),
-        liveAudioCaptureProcessor: resolve(__dirname, "src/offscreen/liveAudioCaptureProcessor.ts"),
-        serviceWorker: resolve(__dirname, "src/background/serviceWorker.ts")
+        popup: resolve(import.meta.dirname, "src/popup/popup.html"),
+        options: resolve(import.meta.dirname, "src/options/options.html"),
+        history: resolve(import.meta.dirname, "src/pages/history.html"),
+        detail: resolve(import.meta.dirname, "src/pages/detail.html"),
+        offscreen: resolve(import.meta.dirname, "src/offscreen/offscreen.html"),
+        liveAudioCaptureProcessor: resolve(import.meta.dirname, "src/offscreen/liveAudioCaptureProcessor.ts"),
+        serviceWorker: resolve(import.meta.dirname, "src/background/serviceWorker.ts")
       },
       output: {
         entryFileNames: "assets/[name].js",
